@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -21,10 +20,22 @@ const Login = () => {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
 
-  // Redirect if already logged in
+  // ✅ Redirect setelah login sesuai role
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      switch (user.role) {
+        case 'admin':
+          navigate('/dashboard/admin');
+          break;
+        case 'panjar':
+          navigate('/dashboard/panjar');
+          break;
+        case 'karung':
+          navigate('/dashboard/karung');
+          break;
+        default:
+          navigate('/dashboard');
+      }
     }
   }, [user, navigate]);
 
@@ -33,6 +44,13 @@ const Login = () => {
     setError('');
     setLoading(true);
 
+    // ✅ Validasi password minimal
+    if (password.length < 6) {
+      setError('Password minimal 6 karakter');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignUp) {
         const { error } = await signUp(email, password, {
@@ -40,8 +58,8 @@ const Login = () => {
           name,
           role
         });
-        
-        if (error) {
+
+        if (error?.message) {
           if (error.message.includes('already been registered')) {
             setError('Email sudah terdaftar. Silakan gunakan email lain atau login.');
           } else {
@@ -60,8 +78,8 @@ const Login = () => {
         }
       } else {
         const { error } = await signIn(email, password);
-        
-        if (error) {
+
+        if (error?.message) {
           if (error.message.includes('Invalid login credentials')) {
             setError('Email atau password salah');
           } else {
@@ -165,7 +183,7 @@ const Login = () => {
               {loading ? 'Loading...' : (isSignUp ? 'Daftar' : 'Login')}
             </Button>
           </form>
-          
+
           <div className="mt-4 text-center">
             <Button
               variant="link"
@@ -181,7 +199,7 @@ const Login = () => {
               {isSignUp ? 'Sudah punya akun? Login di sini' : 'Belum punya akun? Daftar di sini'}
             </Button>
           </div>
-          
+
           {!isSignUp && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold mb-2">Demo Accounts:</h3>
