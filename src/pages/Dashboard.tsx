@@ -6,33 +6,64 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, DollarSign, Package, FileText, Users } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import CatatanPanjar from '@/components/CatatanPanjar';
 import KasKecil from '@/components/KasKecil';
 import KasBesar from '@/components/KasBesar';
 import DataKarung from '@/components/DataKarung';
 
-interface User {
+interface UserProfile {
+  id: string;
   username: string;
-  password: string;
-  role: string;
   name: string;
+  role: 'panjar' | 'karung' | 'admin';
 }
 
 const Dashboard = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
-    const userData = localStorage.getItem('currentUser');
-    if (userData) {
-      setCurrentUser(JSON.parse(userData));
-    } else {
+    if (!user) {
       navigate('/');
+      return;
     }
-  }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('currentUser');
+    const fetchUserProfile = async () => {
+      try {
+        console.log('Fetching profile for user:', user.id);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load user profile",
+            variant: "destructive"
+          });
+        } else {
+          console.log('Profile loaded:', data);
+          setUserProfile(data);
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [user, navigate]);
+
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: "Logout berhasil",
       description: "Anda telah keluar dari sistem",
@@ -40,12 +71,24 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  if (!currentUser) {
-    return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>Failed to load user profile</div>
+      </div>
+    );
   }
 
   const renderUserContent = () => {
-    switch (currentUser.role) {
+    switch (userProfile.role) {
       case 'panjar':
         return (
           <Tabs defaultValue="panjar" className="w-full">
@@ -132,7 +175,7 @@ const Dashboard = () => {
               <Users className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-sm text-gray-600">Selamat datang, {currentUser.name}</p>
+                <p className="text-sm text-gray-600">Selamat datang, {userProfile.name}</p>
               </div>
             </div>
             <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2">
@@ -148,14 +191,14 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              {currentUser.role === 'admin' ? 'Panel Admin - Semua Fitur' : 
-               currentUser.role === 'panjar' ? 'Panel User - Fitur Keuangan' :
+              {userProfile.role === 'admin' ? 'Panel Admin - Semua Fitur' : 
+               userProfile.role === 'panjar' ? 'Panel User - Fitur Keuangan' :
                'Panel User - Data Karung'}
             </CardTitle>
             <CardDescription>
-              Role: {currentUser.role.toUpperCase()} | 
-              Akses: {currentUser.role === 'admin' ? 'Semua fitur' : 
-                     currentUser.role === 'panjar' ? 'Panjar, Kas Kecil, Kas Besar' : 
+              Role: {userProfile.role.toUpperCase()} | 
+              Akses: {userProfile.role === 'admin' ? 'Semua fitur' : 
+                     userProfile.role === 'panjar' ? 'Panjar, Kas Kecil, Kas Besar' : 
                      'Data Karung'}
             </CardDescription>
           </CardHeader>

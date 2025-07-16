@@ -14,7 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      catatan_panjar: {
+        Row: {
+          created_at: string | null
+          id: string
+          nama: string
+          nominal: number
+          status: string
+          tanggal: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nama: string
+          nominal: number
+          status: string
+          tanggal: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nama?: string
+          nominal?: number
+          status?: string
+          tanggal?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      data_karung: {
+        Row: {
+          bruto: number
+          created_at: string | null
+          harga: number
+          id: string
+          kadar_air: number
+          nama: string
+          netto: number
+          nomor: string
+          quantity: number
+          tanggal: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bruto: number
+          created_at?: string | null
+          harga: number
+          id?: string
+          kadar_air: number
+          nama: string
+          netto: number
+          nomor: string
+          quantity: number
+          tanggal: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bruto?: number
+          created_at?: string | null
+          harga?: number
+          id?: string
+          kadar_air?: number
+          nama?: string
+          netto?: number
+          nomor?: string
+          quantity?: number
+          tanggal?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kas_besar: {
+        Row: {
+          created_at: string | null
+          id: string
+          keterangan: string
+          nominal: number
+          tanggal: string
+          tipe: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keterangan: string
+          nominal: number
+          tanggal: string
+          tipe: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keterangan?: string
+          nominal?: number
+          tanggal?: string
+          tipe?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      kas_kecil: {
+        Row: {
+          created_at: string | null
+          id: string
+          keterangan: string
+          nominal: number
+          tanggal: string
+          tipe: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          keterangan: string
+          nominal: number
+          tanggal: string
+          tipe: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          keterangan?: string
+          nominal?: number
+          tanggal?: string
+          tipe?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +190,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "panjar" | "karung" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +317,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["panjar", "karung", "admin"],
+    },
   },
 } as const
