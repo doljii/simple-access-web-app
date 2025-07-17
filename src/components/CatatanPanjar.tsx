@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,7 +48,15 @@ const CatatanPanjar = () => {
           variant: "destructive"
         });
       } else {
-        setEntries(data || []);
+        // Type cast the data to ensure proper typing
+        const typedData = (data || []).map(item => ({
+          id: item.id,
+          tanggal: item.tanggal,
+          nama: item.nama,
+          nominal: item.nominal,
+          status: item.status as 'lunas' | 'belum_lunas'
+        }));
+        setEntries(typedData);
       }
     } catch (err) {
       console.error('Error:', err);
