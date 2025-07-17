@@ -113,16 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Clean up any existing state first
-      cleanupAuthState();
+      console.log('Attempting sign in for:', email);
       
-      // Attempt global sign out first
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch (err) {
-        console.log('Sign out error (expected):', err);
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -147,9 +139,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     metadata: { username: string; name: string; role: 'panjar' | 'karung' | 'admin' }
   ) => {
     try {
-      // Clean up any existing state first
-      cleanupAuthState();
-
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error: signUpError } = await supabase.auth.signUp({
@@ -180,16 +169,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      cleanupAuthState();
-      await supabase.auth.signOut({ scope: 'global' });
+      await supabase.auth.signOut();
       setUser(null);
       setSession(null);
-      // Force page reload for clean state
-      window.location.href = '/';
     } catch (err) {
       console.error('Sign out error:', err);
-      // Force reload anyway
-      window.location.href = '/';
     }
   };
 
