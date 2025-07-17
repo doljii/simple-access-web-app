@@ -19,74 +19,109 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, session } = useAuth();
 
-  // Redirect setelah login sesuai role
+  // Redirect authenticated users
   useEffect(() => {
-    if (user && user.role) {
-      console.log('User role detected:', user.role);
+    if (user && session) {
+      console.log('User authenticated, redirecting to dashboard');
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, session, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // Validasi password minimal
+    // Validation
+    if (!email || !password) {
+      setError('Email dan password harus diisi');
+      setLoading(false);
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password minimal 6 karakter');
       setLoading(false);
       return;
     }
 
+    if (isSignUp && (!name || !username)) {
+      setError('Nama dan username harus diisi');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isSignUp) {
+        console.log('Attempting sign up for:', email);
         const { error } = await signUp(email, password, {
           username,
           name,
           role
         });
 
-        if (error?.message) {
-          if (error.message.includes('already been registered')) {
+        if (error) {
+          console.error('Sign up error:', error);
+          if (error.message?.includes('User already registered')) {
             setError('Email sudah terdaftar. Silakan gunakan email lain atau login.');
+          } else if (error.message?.includes('duplicate key')) {
+            setError('Email sudah digunakan. Silakan gunakan email lain.');
           } else {
-            setError(error.message);
+            setError(error.message || 'Gagal mendaftar akun');
           }
         } else {
           toast({
             title: "Registrasi berhasil!",
             description: "Silakan login dengan akun baru Anda",
           });
+          // Switch to login mode
           setIsSignUp(false);
-          setEmail('');
           setPassword('');
           setName('');
           setUsername('');
         }
       } else {
+        console.log('Attempting sign in for:', email);
         const { error } = await signIn(email, password);
 
-        if (error?.message) {
-          if (error.message.includes('Invalid login credentials')) {
+        if (error) {
+          console.error('Sign in error:', error);
+          if (error.message?.includes('Invalid login credentials')) {
             setError('Email atau password salah');
           } else {
-            setError(error.message);
+            setError(error.message || 'Gagal login');
           }
         } else {
           toast({
             title: "Login berhasil!",
             description: "Selamat datang kembali",
           });
+          // Navigation handled by useEffect
         }
       }
     } catch (err) {
+      console.error('Form submit error:', err);
       setError('Terjadi kesalahan yang tidak terduga');
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = () => {
+    setIsSignUp(!isSignUp);
+    setError('');
+    setEmail('');
+    setPassword('');
+    setName('');
+    setUsername('');
+  };
+
+  const fillDemoAccount = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setIsSignUp(false);
   };
 
   return (
@@ -177,14 +212,8 @@ const Login = () => {
           <div className="mt-4 text-center">
             <Button
               variant="link"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError('');
-                setEmail('');
-                setPassword('');
-                setName('');
-                setUsername('');
-              }}
+              onClick={switchMode}
+              disabled={loading}
             >
               {isSignUp ? 'Sudah punya akun? Login di sini' : 'Belum punya akun? Daftar di sini'}
             </Button>
@@ -193,10 +222,40 @@ const Login = () => {
           {!isSignUp && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <h3 className="font-semibold mb-2">Demo Accounts:</h3>
-              <div className="space-y-1 text-sm">
-                <p><strong>User 1:</strong> user1@demo.com / pass1 (Panjar)</p>
-                <p><strong>User 2:</strong> user2@demo.com / pass2 (Karung)</p>
-                <p><strong>Admin:</strong> user3@demo.com / pass3 (Admin)</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span><strong>User 1:</strong> user1@demo.com / pass1 (Panjar)</span>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => fillDemoAccount('user1@demo.com', 'pass1')}
+                    disabled={loading}
+                  >
+                    Use
+                  </Button>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span><strong>User 2:</strong> user2@demo.com / pass2 (Karung)</span>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => fillDemoAccount('user2@demo.com', 'pass2')}
+                    disabled={loading}
+                  >
+                    Use
+                  </Button>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span><strong>Admin:</strong> user3@demo.com / pass3 (Admin)</span>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => fillDemoAccount('user3@demo.com', 'pass3')}
+                    disabled={loading}
+                  >
+                    Use
+                  </Button>
+                </div>
               </div>
             </div>
           )}
