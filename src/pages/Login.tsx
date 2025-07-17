@@ -64,10 +64,16 @@ const Login = () => {
 
         if (error) {
           console.error('Sign up error:', error);
-          if (error.message?.includes('User already registered')) {
-            setError('Email sudah terdaftar. Silakan gunakan email lain atau login.');
-          } else if (error.message?.includes('duplicate key')) {
-            setError('Email sudah digunakan. Silakan gunakan email lain.');
+          
+          // Better error handling for different scenarios
+          if (error.message?.includes('User already registered') || 
+              error.message?.includes('duplicate key') ||
+              error.message?.includes('users_email_partial_key')) {
+            setError('Email sudah terdaftar. Silakan gunakan email lain atau login dengan akun yang sudah ada.');
+          } else if (error.message?.includes('Database error saving new user')) {
+            setError('Email sudah digunakan. Silakan login dengan akun yang sudah ada atau gunakan email berbeda.');
+          } else if (error.message?.includes('Password should be at least 6 characters')) {
+            setError('Password minimal 6 karakter');
           } else {
             setError(error.message || 'Gagal mendaftar akun');
           }
@@ -121,7 +127,7 @@ const Login = () => {
   const fillDemoAccount = (demoEmail: string, demoPassword: string) => {
     setEmail(demoEmail);
     setPassword(demoPassword);
-    setIsSignUp(false);
+    setIsSignUp(false); // Always switch to login mode for demo accounts
   };
 
   return (
@@ -195,8 +201,9 @@ const Login = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Masukkan password"
+                placeholder="Masukkan password (minimal 6 karakter)"
                 required
+                minLength={6}
               />
             </div>
             {error && (
@@ -221,41 +228,45 @@ const Login = () => {
 
           {!isSignUp && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">Demo Accounts:</h3>
+              <h3 className="font-semibold mb-2">Demo Accounts (Click to Login):</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center">
-                  <span><strong>User 1:</strong> user1@demo.com / pass1 (Panjar)</span>
+                  <span><strong>User 1:</strong> user1@demo.com / password123 (Panjar)</span>
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    onClick={() => fillDemoAccount('user1@demo.com', 'pass1')}
+                    onClick={() => fillDemoAccount('user1@demo.com', 'password123')}
                     disabled={loading}
                   >
                     Use
                   </Button>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span><strong>User 2:</strong> user2@demo.com / pass2 (Karung)</span>
+                  <span><strong>User 2:</strong> user2@demo.com / password123 (Karung)</span>
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    onClick={() => fillDemoAccount('user2@demo.com', 'pass2')}
+                    onClick={() => fillDemoAccount('user2@demo.com', 'password123')}
                     disabled={loading}
                   >
                     Use
                   </Button>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span><strong>Admin:</strong> user3@demo.com / pass3 (Admin)</span>
+                  <span><strong>Admin:</strong> user3@demo.com / password123 (Admin)</span>
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    onClick={() => fillDemoAccount('user3@demo.com', 'pass3')}
+                    onClick={() => fillDemoAccount('user3@demo.com', 'password123')}
                     disabled={loading}
                   >
                     Use
                   </Button>
                 </div>
+              </div>
+              <div className="mt-3 text-xs text-gray-600">
+                <p>* Demo accounts sudah tersedia, klik "Use" untuk login otomatis</p>
+                <p>* Untuk akun baru, gunakan form pendaftaran di atas</p>
               </div>
             </div>
           )}
