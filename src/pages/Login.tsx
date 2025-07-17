@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,22 +21,11 @@ const Login = () => {
   const navigate = useNavigate();
   const { signIn, signUp, user } = useAuth();
 
-  // ✅ Redirect setelah login sesuai role
+  // Redirect setelah login sesuai role
   useEffect(() => {
-    if (user) {
-      switch (user.role) {
-        case 'admin':
-          navigate('/dashboard/admin');
-          break;
-        case 'panjar':
-          navigate('/dashboard/panjar');
-          break;
-        case 'karung':
-          navigate('/dashboard/karung');
-          break;
-        default:
-          navigate('/dashboard');
-      }
+    if (user && user.role) {
+      console.log('User role detected:', user.role);
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -44,7 +34,7 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    // ✅ Validasi password minimal
+    // Validasi password minimal
     if (password.length < 6) {
       setError('Password minimal 6 karakter');
       setLoading(false);
