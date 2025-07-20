@@ -7,22 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, DollarSign, Package, FileText, Users } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import CatatanPanjar from '@/components/CatatanPanjar';
 import KasKecil from '@/components/KasKecil';
 import KasBesar from '@/components/KasBesar';
 import DataKarung from '@/components/DataKarung';
 
-interface UserProfile {
-  id: string;
-  username: string;
-  name: string;
-  role: 'panjar' | 'karung' | 'admin';
-}
-
 const Dashboard = () => {
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
@@ -31,35 +22,7 @@ const Dashboard = () => {
       navigate('/');
       return;
     }
-
-    const fetchUserProfile = async () => {
-      try {
-        console.log('Fetching profile for user:', user.id);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load user profile",
-            variant: "destructive"
-          });
-        } else {
-          console.log('Profile loaded:', data);
-          setUserProfile(data);
-        }
-      } catch (err) {
-        console.error('Error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserProfile();
+    setLoading(false);
   }, [user, navigate]);
 
   const handleLogout = async () => {
@@ -79,16 +42,20 @@ const Dashboard = () => {
     );
   }
 
-  if (!userProfile) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div>Failed to load user profile</div>
+        <div>Please log in to access the dashboard</div>
       </div>
     );
   }
 
+  // Use user data with fallbacks
+  const userName = user.name || user.email || 'User';
+  const userRole = user.role || 'panjar';
+
   const renderUserContent = () => {
-    switch (userProfile.role) {
+    switch (userRole) {
       case 'panjar':
         return (
           <Tabs defaultValue="panjar" className="w-full">
@@ -175,7 +142,7 @@ const Dashboard = () => {
               <Users className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-sm text-gray-600">Selamat datang, {userProfile.name}</p>
+                <p className="text-sm text-gray-600">Selamat datang, {userName}</p>
               </div>
             </div>
             <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2">
@@ -191,14 +158,14 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              {userProfile.role === 'admin' ? 'Panel Admin - Semua Fitur' : 
-               userProfile.role === 'panjar' ? 'Panel User - Fitur Keuangan' :
+              {userRole === 'admin' ? 'Panel Admin - Semua Fitur' : 
+               userRole === 'panjar' ? 'Panel User - Fitur Keuangan' :
                'Panel User - Data Karung'}
             </CardTitle>
             <CardDescription>
-              Role: {userProfile.role.toUpperCase()} | 
-              Akses: {userProfile.role === 'admin' ? 'Semua fitur' : 
-                     userProfile.role === 'panjar' ? 'Panjar, Kas Kecil, Kas Besar' : 
+              Role: {userRole.toUpperCase()} | 
+              Akses: {userRole === 'admin' ? 'Semua fitur' : 
+                     userRole === 'panjar' ? 'Panjar, Kas Kecil, Kas Besar' : 
                      'Data Karung'}
             </CardDescription>
           </CardHeader>

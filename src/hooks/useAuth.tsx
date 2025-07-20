@@ -31,20 +31,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Cleanup function to clear any conflicting auth state
-const cleanupAuthState = () => {
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      localStorage.removeItem(key);
-    }
-  });
-  Object.keys(sessionStorage || {}).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      sessionStorage.removeItem(key);
-    }
-  });
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<(User & Profile) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -61,11 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         // Defer profile fetching to avoid deadlocks
         setTimeout(async () => {
-          const profile = await fetchUserProfile(session.user.id);
+          const profile = await fetchOrCreateUserProfile(session.user);
           if (profile) {
             setUser({ ...session.user, ...profile });
           } else {
-            setUser(session.user as any);
+            // Fallback to user data from auth
+            setUser({ 
+              ...session.user, 
+              username: session.user.email?.split('@')[0] || 'user',
+              name: session.user.email || 'User',
+              role: 'panjar' as const
+            });
           }
         }, 0);
       } else {
@@ -79,11 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Initial session check:', session?.user?.email);
       setSession(session);
       if (session?.user) {
-        const profile = await fetchUserProfile(session.user.id);
+        const profile = await fetchOrCreateUserProfile(session.user);
         if (profile) {
           setUser({ ...session.user, ...profile });
         } else {
-          setUser(session.user as any);
+          // Fallback to user data from auth
+          setUser({ 
+            ...session.user, 
+            username: session.user.email?.split('@')[0] || 'user',
+            name: session.user.email || 'User',
+            role: 'panjar' as const
+          });
         }
       }
       setLoading(false);
@@ -92,21 +90,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
+  const fetchOrCreateUserProfile = async (user: User): Promise<Profile | null> => {
     try {
+      console.log('Fetching profile for user:', user.id);
+      
+      // First try to fetch existing profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', user.id)
+        .maybeSingle();
 
       if (error) {
-        console.error('Failed to fetch profile:', error);
+        console.error('Error fetching profile:', error);
         return null;
       }
-      return data;
+
+      if (data) {
+        console.log('Profile found:', data);
+        return data;
+      }
+
+      // If no profile exists, create one
+      console.log('No profile found, creating one for user:', user.id);
+      const newProfile = {
+        id: user.id,
+        username: user.user_metadata?.username || user.email?.split('@')[0] || 'user',
+        name: user.user_metadata?.name || user.email || 'User',
+        role: (user.user_metadata?.role as 'panjar' | 'karung' | 'admin') || 'panjar'
+      };
+
+      const { data: createdProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(newProfile)
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return null;
+      }
+
+      console.log('Profile created:', createdProfile);
+      return createdProfile;
     } catch (err) {
-      console.error('Profile fetch error:', err);
+      console.error('Profile fetch/create error:', err);
       return null;
     }
   };
