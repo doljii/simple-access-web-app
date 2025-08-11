@@ -1,4 +1,3 @@
-
 import {
   useState,
   useEffect,
@@ -8,6 +7,7 @@ import {
 } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { cleanupAuthState } from '@/utils/authCleanup';
 
 interface Profile {
   id: string;
@@ -37,13 +37,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener first
+    // Set up auth state listener first (non-async to avoid deadlocks)
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       setSession(session);
-      
+
       if (session?.user) {
         // Defer profile fetching to avoid deadlocks
         setTimeout(async () => {
@@ -52,8 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser({ ...session.user, ...profile });
           } else {
             // Fallback to user data from auth
-            setUser({ 
-              ...session.user, 
+            setUser({
+              ...session.user,
               username: session.user.email?.split('@')[0] || 'user',
               name: session.user.email || 'User',
               role: 'panjar' as const
@@ -76,8 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser({ ...session.user, ...profile });
         } else {
           // Fallback to user data from auth
-          setUser({ 
-            ...session.user, 
+          setUser({
+            ...session.user,
             username: session.user.email?.split('@')[0] || 'user',
             name: session.user.email || 'User',
             role: 'panjar' as const
@@ -93,8 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchOrCreateUserProfile = async (user: User): Promise<Profile | null> => {
     try {
       console.log('Fetching profile for user:', user.id);
-      
-      // First try to fetch existing profile
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -108,10 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data) {
         console.log('Profile found:', data);
-        return data;
+        return data as unknown as Profile;
       }
 
-      // If no profile exists, create one
       console.log('No profile found, creating one for user:', user.id);
       const newProfile = {
         id: user.id,
@@ -132,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('Profile created:', createdProfile);
-      return createdProfile;
+      return createdProfile as unknown as Profile;
     } catch (err) {
       console.error('Profile fetch/create error:', err);
       return null;
@@ -142,7 +139,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Attempting sign in for:', email);
-      
+
+      // Clean up any stale tokens and ensure a clean state
+      cleanupAuthState();
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (e) {
+        console.warn('Pre-login global sign out warning (ignored):', e);
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -167,8 +172,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     metadata: { username: string; name: string; role: 'panjar' | 'karung' | 'admin' }
   ) => {
     try {
+      // Clean up any stale tokens before starting a new sign up flow
+      cleanupAuthState();
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (e) {
+        console.warn('Pre-signup global sign out warning (ignored):', e);
+      }
+
       const redirectUrl = `${window.location.origin}/`;
-      
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -197,11 +210,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      // Clean local state first
+      cleanupAuthState();
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (e) {
+        console.warn('Global sign out warning (ignored):', e);
+      }
       setUser(null);
       setSession(null);
     } catch (err) {
       console.error('Sign out error:', err);
+    } finally {
+      // Force a full page reload to ensure a clean slate
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     }
   };
 
