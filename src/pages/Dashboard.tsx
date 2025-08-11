@@ -19,25 +19,40 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) {
+      console.log('No user found, redirecting to login');
       navigate('/');
       return;
     }
+    console.log('Dashboard loaded for user:', user.email, 'role:', user.role);
     setLoading(false);
   }, [user, navigate]);
 
   const handleLogout = async () => {
-    await signOut();
-    toast({
-      title: "Logout berhasil",
-      description: "Anda telah keluar dari sistem",
-    });
-    navigate('/');
+    setLoading(true);
+    try {
+      await signOut();
+      toast({
+        title: "Logout berhasil",
+        description: "Anda telah keluar dari sistem",
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout error",
+        description: "Terjadi kesalahan saat logout",
+        variant: "destructive",
+      });
+    }
+    // Navigation will be handled by the auth provider
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div>Loading...</div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div>Loading dashboard...</div>
+        </div>
       </div>
     );
   }
@@ -45,14 +60,27 @@ const Dashboard = () => {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div>Please log in to access the dashboard</div>
+        <div className="text-center">
+          <div className="mb-4">Please log in to access the dashboard</div>
+          <Button onClick={() => navigate('/')}>Go to Login</Button>
+        </div>
       </div>
     );
   }
 
-  // Use user data with fallbacks
-  const userName = user.name || user.email || 'User';
+  // Use user data with fallbacks and better handling
+  const userName = user.name || user.email?.split('@')[0] || 'User';
   const userRole = user.role || 'panjar';
+  const userEmail = user.email || 'No email';
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'panjar': return 'Panjar';
+      case 'karung': return 'Karung';
+      case 'admin': return 'Admin';
+      default: return role.toUpperCase();
+    }
+  };
 
   const renderUserContent = () => {
     switch (userRole) {
@@ -129,7 +157,12 @@ const Dashboard = () => {
         );
       
       default:
-        return <div>Role tidak dikenali</div>;
+        return (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Role tidak dikenali: {userRole}</p>
+            <p className="text-sm text-gray-500 mt-2">Silakan hubungi admin untuk memperbaiki role Anda.</p>
+          </div>
+        );
     }
   };
 
@@ -142,12 +175,20 @@ const Dashboard = () => {
               <Users className="h-8 w-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-sm text-gray-600">Selamat datang, {userName}</p>
+                <p className="text-sm text-gray-600">
+                  Selamat datang, {userName} ({getRoleDisplayName(userRole)})
+                </p>
+                <p className="text-xs text-gray-500">{userEmail}</p>
               </div>
             </div>
-            <Button onClick={handleLogout} variant="outline" className="flex items-center gap-2">
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              className="flex items-center gap-2"
+              disabled={loading}
+            >
               <LogOut className="h-4 w-4" />
-              Logout
+              {loading ? 'Signing out...' : 'Logout'}
             </Button>
           </div>
         </div>
@@ -163,7 +204,7 @@ const Dashboard = () => {
                'Panel User - Data Karung'}
             </CardTitle>
             <CardDescription>
-              Role: {userRole.toUpperCase()} | 
+              Role: {getRoleDisplayName(userRole)} | 
               Akses: {userRole === 'admin' ? 'Semua fitur' : 
                      userRole === 'panjar' ? 'Panjar, Kas Kecil, Kas Besar' : 
                      'Data Karung'}

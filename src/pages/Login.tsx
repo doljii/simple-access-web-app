@@ -18,6 +18,7 @@ const Login = () => {
   const [role, setRole] = useState<'panjar' | 'karung' | 'admin'>('panjar');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const navigate = useNavigate();
   const { signIn, signUp, user, session } = useAuth();
 
@@ -65,7 +66,6 @@ const Login = () => {
         if (error) {
           console.error('Sign up error:', error);
           
-          // Better error handling for different scenarios
           if (error.message?.includes('User already registered') || 
               error.message?.includes('duplicate key') ||
               error.message?.includes('users_email_partial_key')) {
@@ -74,19 +74,17 @@ const Login = () => {
             setError('Email sudah digunakan. Silakan login dengan akun yang sudah ada atau gunakan email berbeda.');
           } else if (error.message?.includes('Password should be at least 6 characters')) {
             setError('Password minimal 6 karakter');
+          } else if (error.message?.includes('Signup requires a valid password')) {
+            setError('Password tidak valid. Pastikan password minimal 6 karakter.');
           } else {
             setError(error.message || 'Gagal mendaftar akun');
           }
         } else {
           toast({
             title: "Registrasi berhasil!",
-            description: "Silakan login dengan akun baru Anda",
+            description: "Akun berhasil dibuat. Anda akan otomatis login.",
           });
-          // Switch to login mode
-          setIsSignUp(false);
-          setPassword('');
-          setName('');
-          setUsername('');
+          // Don't switch to login mode, user will be auto-logged in
         }
       } else {
         console.log('Attempting sign in for:', email);
@@ -96,6 +94,8 @@ const Login = () => {
           console.error('Sign in error:', error);
           if (error.message?.includes('Invalid login credentials')) {
             setError('Email atau password salah');
+          } else if (error.message?.includes('Email not confirmed')) {
+            setError('Email belum dikonfirmasi. Silakan cek email Anda atau hubungi admin.');
           } else {
             setError(error.message || 'Gagal login');
           }
@@ -104,7 +104,6 @@ const Login = () => {
             title: "Login berhasil!",
             description: "Selamat datang kembali",
           });
-          // Navigation handled by useEffect
         }
       }
     } catch (err) {
@@ -124,10 +123,51 @@ const Login = () => {
     setUsername('');
   };
 
-  const fillDemoAccount = (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setIsSignUp(false); // Always switch to login mode for demo accounts
+  const handleDemoLogin = async (demoEmail: string, demoPassword: string, demoRole: 'panjar' | 'karung' | 'admin', demoName: string) => {
+    setDemoLoading(demoEmail);
+    setError('');
+
+    try {
+      console.log(`Attempting demo login for: ${demoEmail}`);
+      
+      // First try to sign in
+      const { error: signInError } = await signIn(demoEmail, demoPassword);
+      
+      if (signInError) {
+        console.log('Demo sign in failed, attempting to create account:', signInError.message);
+        
+        // If sign in fails, try to create the account
+        const { error: signUpError } = await signUp(demoEmail, demoPassword, {
+          username: demoEmail.split('@')[0],
+          name: demoName,
+          role: demoRole
+        });
+
+        if (signUpError) {
+          console.error('Demo sign up error:', signUpError);
+          if (signUpError.message?.includes('User already registered')) {
+            setError('Akun demo sudah ada tapi password tidak cocok. Silakan hubungi admin.');
+          } else {
+            setError(`Gagal membuat akun demo: ${signUpError.message}`);
+          }
+        } else {
+          toast({
+            title: "Akun demo berhasil dibuat!",
+            description: `Selamat datang ${demoName} (${demoRole.toUpperCase()})`,
+          });
+        }
+      } else {
+        toast({
+          title: "Login demo berhasil!",
+          description: `Selamat datang ${demoName} (${demoRole.toUpperCase()})`,
+        });
+      }
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setError('Terjadi kesalahan saat login demo');
+    } finally {
+      setDemoLoading(null);
+    }
   };
 
   return (
@@ -228,45 +268,39 @@ const Login = () => {
 
           {!isSignUp && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold mb-2">Demo Accounts (Click to Login):</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span><strong>User 1:</strong> user1@demo.com / password123 (Panjar)</span>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => fillDemoAccount('user1@demo.com', 'password123')}
-                    disabled={loading}
-                  >
-                    Use
-                  </Button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span><strong>User 2:</strong> user2@demo.com / password123 (Karung)</span>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => fillDemoAccount('user2@demo.com', 'password123')}
-                    disabled={loading}
-                  >
-                    Use
-                  </Button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span><strong>Admin:</strong> user3@demo.com / password123 (Admin)</span>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => fillDemoAccount('user3@demo.com', 'password123')}
-                    disabled={loading}
-                  >
-                    Use
-                  </Button>
-                </div>
+              <h3 className="font-semibold mb-3 text-center">Demo Login (One-Click)</h3>
+              <div className="space-y-3">
+                <Button 
+                  className="w-full justify-between"
+                  variant="outline" 
+                  onClick={() => handleDemoLogin('demo.panjar@example.com', 'demo123', 'panjar', 'Demo Panjar User')}
+                  disabled={!!demoLoading || loading}
+                >
+                  <span><strong>Panjar User</strong> - demo.panjar@example.com</span>
+                  {demoLoading === 'demo.panjar@example.com' ? 'Loading...' : 'Login'}
+                </Button>
+                <Button 
+                  className="w-full justify-between"
+                  variant="outline" 
+                  onClick={() => handleDemoLogin('demo.karung@example.com', 'demo123', 'karung', 'Demo Karung User')}
+                  disabled={!!demoLoading || loading}
+                >
+                  <span><strong>Karung User</strong> - demo.karung@example.com</span>
+                  {demoLoading === 'demo.karung@example.com' ? 'Loading...' : 'Login'}
+                </Button>
+                <Button 
+                  className="w-full justify-between"
+                  variant="outline" 
+                  onClick={() => handleDemoLogin('demo.admin@example.com', 'demo123', 'admin', 'Demo Admin User')}
+                  disabled={!!demoLoading || loading}
+                >
+                  <span><strong>Admin User</strong> - demo.admin@example.com</span>
+                  {demoLoading === 'demo.admin@example.com' ? 'Loading...' : 'Login'}
+                </Button>
               </div>
-              <div className="mt-3 text-xs text-gray-600">
-                <p>* Demo accounts sudah tersedia, klik "Use" untuk login otomatis</p>
-                <p>* Untuk akun baru, gunakan form pendaftaran di atas</p>
+              <div className="mt-3 text-xs text-gray-600 text-center">
+                <p>* Klik tombol di atas untuk login otomatis dengan akun demo</p>
+                <p>* Jika akun belum ada, akan dibuat otomatis</p>
               </div>
             </div>
           )}
